@@ -5,6 +5,7 @@
 #include <string>
 #include <direct.h>
 #include <errno.h> 
+#include <fstream>
 using namespace std;
 
 void file_copy(string source, string dest) {
@@ -21,10 +22,12 @@ void file_copy(string source, string dest) {
 	fclose(fdest);
 	return;
 }
+static ofstream log_file;
 
 
 void reculsive_search(string path, string path2) {
 	_finddata64i32_t fd,fd2;
+
 	
 	long handle = _findfirst((path + "\\*.*").c_str(), &fd);
 	int result = 1;
@@ -37,49 +40,57 @@ void reculsive_search(string path, string path2) {
 	result = _findnext(handle, &fd);
 	result = _findnext(handle, &fd);
 	printf("GOING INTO---->\n");
+	
 	while (result != -1)
 	{
 		printf("File: %s\n", fd.name);
+		//log_file << "File: COPY ----- " << fd.name << "\n";
 		long handle2 = _findfirst((path2 +"\\"+ fd.name).c_str(), &fd2);
 		if (handle2 == -1) {
 			printf("destination dont have this files.\n");
 			if (16 == fd.attrib) {
 				int nResult = _mkdir( (path2 +"\\"+ fd.name).c_str() );
-				if (nResult == 0)
+				log_file << "File: MAKE DIR ----- " << fd.name << "\n";
+				if (nResult == -1)
 				{
-					printf("폴더 생성 성공");
-				}
-				else if (nResult == -1)
-				{
-					perror("폴더 생성 실패 - 폴더가 이미 있거나 부정확함\n");
 					printf("errorno : %d", errno);
+					return;
 				}
+				log_file << "GOING INTO---->\n";
 				reculsive_search((path + "\\" + fd.name), (path2 + "\\" + fd.name));
 			}
 			else {
 				file_copy((path + "\\" + fd.name), (path2 + "\\" + fd.name));
-				//reculsive_search((path + "\\" + fd.name), (path2 + "\\" + fd.name));
+				printf("File: COPY ----- %s\n", fd.name);
+				log_file << "File: COPY ----- " << fd.name << "\n" ;
 			}
 		}
 		else if (fd.attrib == 16) {
+			log_file << "DIR:  ----- " << fd.name << "\n";
+			log_file << "GOING INTO---->\n";
 			reculsive_search((path + "\\" + fd.name), (path2 + "\\" + fd.name));
 		}
-		else if (fd.attrib != fd2.attrib) {
+		else if (fd.time_write > fd2.time_write) {
 			file_copy((path + "\\" + fd.name), (path2 + "\\" + fd.name));
-			//reculsive_search((path + "\\" + fd.name), (path2 + "\\" + fd.name));
+			printf("File: COPY ----- %s\n", fd.name);
+			log_file << "File: COPY ----- " << fd.name << "\n";
 		}
 		result = _findnext(handle, &fd);
 	}
 
 	printf("GOING BACK<----\n");
+	log_file << "GOING BACK<----\n";
 	_findclose(handle);
+	
 }
 
 void main()
 {
 	string path = "C:\\Users\\유창완-PC\\Desktop\\aaa";
 	string path2 = "C:\\Users\\유창완-PC\\Desktop\\zzz";
+	log_file.open((path2 +"\\" " mybackup.log").c_str(), ios::trunc);
 	reculsive_search(path,path2);
+	log_file.close();
 	system("pause");
 	return;
 }
